@@ -84,6 +84,19 @@
 </header>
 
 <main>
+  <!-- UYARI VE YÖNLENDİRME KUTUSU -->
+  <div class="card" style="background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;margin-bottom:12px;padding:12px 14px">
+    <div style="font-weight:700;margin-bottom:4px;display:flex;align-items:center;gap:6px">
+      <span>💡</span><span>Nasıl Bağlanılır?</span>
+    </div>
+    <div style="font-size:13px;line-height:1.45;color:#1e40af">
+      Telefonun kendi <b>Ayarlar > Bluetooth</b> menüsünden bağlanmaya çalışmayın (Android orada <i>"uygulama gerek"</i> der).<br>
+      <b>1.</b> Telefonun <b>Bluetooth</b> ve <b>Konum (GPS)</b> servislerini açın.<br>
+      <b>2.</b> Doğrudan aşağıdaki <b>"🔗 Bandı Bağla"</b> butonuna basın.<br>
+      <b>3.</b> Chrome'un açtığı listeden <b>W-fit</b>'i seçip "Eşle / Bağlan" deyin.
+    </div>
+  </div>
+
   <div class="warnbox" id="compatWarn"></div>
 
   <!-- BAĞLANTI -->
@@ -195,6 +208,16 @@
     FTMS_CONTROL:    '00002ad9-0000-1000-8000-00805f9b34fb',
     FTMS_DATA:       '00002acd-0000-1000-8000-00805f9b34fb'
   };
+  const ALL_OPTIONAL_SERVICES = [
+    '0000fff0-0000-1000-8000-00805f9b34fb',
+    '00001826-0000-1000-8000-00805f9b34fb',
+    '0000fee7-0000-1000-8000-00805f9b34fb',
+    '0000ffe0-0000-1000-8000-00805f9b34fb',
+    '0000ff12-0000-1000-8000-00805f9b34fb',
+    '0000180a-0000-1000-8000-00805f9b34fb',
+    '6e400001-b5a3-f393-e0a9-e50e24dcca9e',
+    '49535343-fe7d-4ae5-8fa9-9fafd205e455'
+  ];
   const MIN_SPEED = 0.5, MAX_SPEED = 12.0;
   const DEFAULT_PROGRAM = [
     { name: 'Isınma',  dur: 180, speed: 3.5 },
@@ -374,21 +397,21 @@
 
   // ===================== BAĞLANTI =====================
   async function connect() {
-    if (!navigator.bluetooth) return log('Web Bluetooth desteklenmiyor.', 'err');
+    if (!navigator.bluetooth) return log('Web Bluetooth desteklenmiyor. Lütfen Android Chrome kullanın.', 'err');
     try {
       setStatus('Cihaz seçiliyor…', 'busy');
-      log('Cihaz seçimi isteniyor…', 'info');
+      log('Cihaz arama listesi açılıyor… W-fit veya bandınızı seçin.', 'info');
       const device = await navigator.bluetooth.requestDevice({
         acceptAllDevices: true,
-        optionalServices: [UUID.FITSHOW_SERVICE, UUID.FTMS_SERVICE, 0xfff0, 0x1826]
+        optionalServices: ALL_OPTIONAL_SERVICES
       });
       state.device = device;
       $('devName').textContent = device.name || '(isimsiz)';
       device.addEventListener('gattserverdisconnected', onDisconnected);
-      log(`Seçildi: ${device.name || device.id}`, 'info');
+      log(`Cihaz seçildi: ${device.name || device.id}`, 'info');
       await connectGatt();
     } catch (e) {
-      log(`Bağlantı hatası: ${e.message}`, 'err');
+      log(`Bağlantı iptal/hata: ${e.message}`, 'err');
       setStatus('Bağlı değil', '');
     }
   }
@@ -396,32 +419,76 @@
   async function connectGatt() {
     setStatus('Bağlanıyor…', 'busy');
     state.server = await state.device.gatt.connect();
-    log('GATT bağlandı. Servisler aranıyor…', 'info');
+    log('GATT sunucusuna bağlanıldı. Servisler inceleniyor…', 'info');
     state.available = { fitshow: null, ftms: null };
 
+    // 1. FitShow FFF0 kontrolü
     try {
       const s = await state.server.getPrimaryService(UUID.FITSHOW_SERVICE);
-      const w = await s.getCharacteristic(UUID.FITSHOW_WRITE);
-      let n = null; try { n = await s.getCharacteristic(UUID.FITSHOW_NOTIFY); } catch (e) {}
-      state.available.fitshow = { write: w, notify: n };
-      log('✔ FitShow FFF0 servisi bulundu', 'info');
-    } catch (e) { log('FitShow FFF0 servisi yok', ''); }
+      let w = null, n = null;
+      try { w = await s.getCharacteristic(UUID.FITSHOW_WRITE); } catch (e) {}
+      try { n = await s.getCharacteristic(UUID.FITSHOW_NOTIFY); } catch (e) {}
+      if (!w || !n) {
+        const chars = await s.getCharacteristics();
+        for (const c of chars) {
+          if (!w && (c.properties.write || c.properties.writeWithoutResponse)) w = c;
+          if (!n && (c.properties.notify || c.properties.indicate)) n = c;
+        }
+      }
+      if (w) {
+        state.available.fitshow = { write: w, notify: n };
+        log(`✔ FitShow FFF0 servisi bulundu (Yazma: ${w.uuid.slice(4, 8)})`, 'info');
+      }
+    } catch (e) { log('FitShow FFF0 servisi bu modelde yok veya farklı', ''); }
 
+    // 2. Standart FTMS 1826 kontrolü
     try {
       const s = await state.server.getPrimaryService(UUID.FTMS_SERVICE);
-      const w = await s.getCharacteristic(UUID.FTMS_CONTROL);
-      let n = null; try { n = await s.getCharacteristic(UUID.FTMS_DATA); } catch (e) {}
-      state.available.ftms = { write: w, notify: n };
-      log('✔ FTMS 1826 servisi bulundu', 'info');
-      // Control Point yanıtları (indicate)
-      try {
-        await w.startNotifications();
-        w.addEventListener('characteristicvaluechanged', ev => onNotify(ev, 'FTMS-CP'));
-      } catch (e) { log('FTMS CP indicate açılamadı: ' + e.message, ''); }
-    } catch (e) { log('FTMS 1826 servisi yok', ''); }
+      let w = null, n = null;
+      try { w = await s.getCharacteristic(UUID.FTMS_CONTROL); } catch (e) {}
+      try { n = await s.getCharacteristic(UUID.FTMS_DATA); } catch (e) {}
+      if (!w || !n) {
+        const chars = await s.getCharacteristics();
+        for (const c of chars) {
+          if (!w && (c.properties.write || c.properties.writeWithoutResponse)) w = c;
+          if (!n && (c.properties.notify || c.properties.indicate)) n = c;
+        }
+      }
+      if (w) {
+        state.available.ftms = { write: w, notify: n };
+        log(`✔ Standart FTMS 1826 servisi bulundu (Yazma: ${w.uuid.slice(4, 8)})`, 'info');
+        try {
+          if (w.properties.indicate || w.properties.notify) {
+            await w.startNotifications();
+            w.addEventListener('characteristicvaluechanged', ev => onNotify(ev, 'FTMS-CP'));
+          }
+        } catch (e) {}
+      }
+    } catch (e) { log('FTMS 1826 servisi bu modelde yok', ''); }
+
+    // 3. İkisi de doğrudan bulunamadıysa alternatif servisleri tara
+    if (!state.available.fitshow && !state.available.ftms) {
+      log('Özel servisler taranıyor…', 'info');
+      for (const servUuid of ALL_OPTIONAL_SERVICES) {
+        try {
+          const s = await state.server.getPrimaryService(servUuid);
+          const chars = await s.getCharacteristics();
+          let w = null, n = null;
+          for (const c of chars) {
+            if (!w && (c.properties.write || c.properties.writeWithoutResponse)) w = c;
+            if (!n && (c.properties.notify || c.properties.indicate)) n = c;
+          }
+          if (w) {
+            log(`✔ Alternatif servis bulundu: ${servUuid.slice(4, 8)}`, 'info');
+            state.available.fitshow = { write: w, notify: n };
+            break;
+          }
+        } catch (e) {}
+      }
+    }
 
     if (!state.available.fitshow && !state.available.ftms) {
-      log('Desteklenen servis bulunamadı!', 'err');
+      log('Uyumlu servis bulunamadı! Cihaz açık ve yakında mı kontrol edin.', 'err');
       setStatus('Servis yok', 'busy');
       return;
     }
