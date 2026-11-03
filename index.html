@@ -3,11 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Walke HIIT">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<title>Walke / FitShow HIIT Kontrol (v1.2)</title>
+<title>Walke / FitShow HIIT Kontrol</title>
 <style>
   :root{
     --bg:#f4f6fb; --card:#ffffff; --text:#1d2433; --muted:#6b7385; --border:#e2e6ef;
@@ -43,10 +48,10 @@
   .slider::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
   .switch input:checked + .slider{background:var(--ok)}
   .switch input:checked + .slider::after{left:23px}
-  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-  .stat{background:#f7f9fd;border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center}
-  .stat .v{font-size:22px;font-weight:700}
-  .stat .l{font-size:12px;color:var(--muted)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+  .stat{background:#f7f9fd;border:1px solid var(--border);border-radius:12px;padding:8px 6px;text-align:center}
+  .stat .v{font-size:18px;font-weight:700}
+  .stat .l{font-size:11px;color:var(--muted);white-space:nowrap}
   .speed-big{font-size:54px;font-weight:800;text-align:center;line-height:1;margin:6px 0}
   .speed-big small{font-size:18px;color:var(--muted);font-weight:600}
   .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
@@ -65,6 +70,9 @@
   tr.active td{background:#e8f0ff}
   tr.active td:first-child{border-left:4px solid var(--primary)}
   .del{background:#fdecec;color:var(--danger);padding:10px 12px}
+  .log-item{background:#f8fafc;border:1px solid var(--border);border-radius:10px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center;font-size:13px}
+  .badge-ok{background:#dcfce7;color:#166534;font-size:11px;padding:2px 6px;border-radius:6px;font-weight:600}
+  .badge-stop{background:#fef3c7;color:#92400e;font-size:11px;padding:2px 6px;border-radius:6px;font-weight:600}
   #log{background:#0f172a;color:#d1d5db;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;height:240px;overflow-y:auto;border-radius:10px;padding:8px;white-space:pre-wrap;word-break:break-all}
   #log .tx{color:#60a5fa} #log .rx{color:#4ade80} #log .err{color:#f87171} #log .info{color:#fbbf24}
   .estop{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:10px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border-top:1px solid var(--border)}
@@ -76,13 +84,17 @@
     .timer .count{font-size:68px}
     .speed-big{font-size:46px}
     th:nth-child(1),td:nth-child(1){width:38%}
+    .stats{grid-template-columns:repeat(2,1fr)}
   }
 </style>
 </head>
 <body>
 
 <header>
-  <h1>🏃 Walke HIIT</h1>
+  <div style="display:flex;align-items:center;gap:8px">
+    <h1 style="font-size:16px;margin:0">🏃 Walke HIIT</h1>
+    <button id="btnInstallPwa" class="btn-primary" style="display:none;padding:5px 10px;font-size:12px;border-radius:8px">📲 Uygulama Yap</button>
+  </div>
   <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Bağlı değil</span></div>
 </header>
 
@@ -127,12 +139,20 @@
 
   <!-- CANLI VERİ + MANUEL -->
   <section class="card">
-    <h2>Manuel Kontrol</h2>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <h2 style="margin:0">Manuel Kontrol</h2>
+      <div style="display:flex;align-items:center;gap:6px;font-size:13px">
+        <span class="muted">Kilonuz:</span>
+        <input type="number" id="userWeight" min="30" max="250" step="1" value="75" style="width:65px;padding:4px 6px;text-align:center;font-size:13px">
+        <span class="muted">kg</span>
+      </div>
+    </div>
     <div class="speed-big"><span id="targetSpeed">0.0</span> <small>km/s hedef</small></div>
     <div class="stats" style="margin-bottom:10px">
-      <div class="stat"><div class="v" id="liveSpeed">-</div><div class="l">Banttan Hız</div></div>
-      <div class="stat"><div class="v" id="liveDist">-</div><div class="l">Mesafe (km)</div></div>
-      <div class="stat"><div class="v" id="liveTime">-</div><div class="l">Süre</div></div>
+      <div class="stat"><div class="v" id="liveSpeed">-</div><div class="l">Hız (km/s)</div></div>
+      <div class="stat"><div class="v" id="liveDist">0.00</div><div class="l">Mesafe (km)</div></div>
+      <div class="stat"><div class="v" id="liveTime">00:00</div><div class="l">Süre</div></div>
+      <div class="stat"><div class="v" id="liveCal">0</div><div class="l">Kalori (kcal)</div></div>
     </div>
     <div class="row" style="margin-bottom:8px">
       <button class="btn-ok grow" id="btnStart">▶ Başlat</button>
@@ -180,6 +200,26 @@
     <div class="row" style="margin-top:10px">
       <button class="btn-outline grow" id="btnAddRow">＋ Satır Ekle</button>
       <button class="btn-outline" id="btnResetProg">Varsayılan</button>
+    </div>
+  </section>
+
+  <!-- ANTRENMAN GEÇMİŞİ & LOG TUTUCU -->
+  <section class="card">
+    <h2>
+      <span>📊 Antrenman Geçmişi</span>
+      <div style="display:flex;gap:6px">
+        <button class="btn-outline" id="btnExportLogs" style="padding:6px 10px;font-size:12px">📥 CSV İndir</button>
+        <button class="btn-outline" id="btnClearLogs" style="padding:6px 10px;font-size:12px;color:var(--danger)">🗑 Temizle</button>
+      </div>
+    </h2>
+    <div class="stats" style="margin-bottom:12px">
+      <div class="stat"><div class="v" id="sumRuns">0</div><div class="l">Koşu Sayısı</div></div>
+      <div class="stat"><div class="v" id="sumKm">0.0</div><div class="l">Toplam Km</div></div>
+      <div class="stat"><div class="v" id="sumTime">00:00</div><div class="l">Toplam Süre</div></div>
+      <div class="stat"><div class="v" id="sumCal">0</div><div class="l">Toplam Kcal</div></div>
+    </div>
+    <div id="workoutList" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
+      <div class="muted" style="text-align:center;padding:16px" id="noLogsMsg">Henüz kayıtlı antrenman yok. Koşunuzu tamamladığınızda otomatik kaydedilir.</div>
     </div>
   </section>
 
@@ -324,12 +364,13 @@
     if (state.protocol === 'ftms') await write(Packets.ftms.requestControl(), '(Request Control)');
     await write(Packets[state.protocol].start(), '(Start)');
     state.running = true;
+    startSessionTimer(false);
     if (state.targetSpeed < MIN_SPEED) setSpeed(1.0); else await sendSpeed();
   }
   async function cmdStop() {
-    if (!state.protocol) return;
-    await write(Packets[state.protocol].stop(), '(Stop)');
+    if (state.protocol) await write(Packets[state.protocol].stop(), '(Stop)');
     state.running = false;
+    endSession('Durduruldu');
   }
   async function sendSpeed() {
     if (!state.protocol) return;
@@ -768,6 +809,7 @@
       await write(Packets[state.protocol].start(), '(Start)');
       state.running = true;
     }
+    startSessionTimer(true);
     enterStep(0);
     clearInterval(H.timer);
     H.timer = setInterval(tick, 1000);
@@ -788,6 +830,7 @@
     log('HIIT programı tamamlandı.', 'info');
     state.targetSpeed = MIN_SPEED; updateSpeedUI(); sendSpeed();
     cmdStop();
+    endSession('Tamamlandı');
   }
   function pauseHiit(force) {
     if (!H.active) return;
@@ -798,7 +841,13 @@
     log(H.paused ? 'HIIT duraklatıldı' : 'HIIT devam ediyor', 'info');
   }
   $('btnHiitStart').addEventListener('click', () => {
-    if (H.active) { stopHiitEngine(); $('tPhase').textContent = 'Durduruldu'; log('HIIT kullanıcı tarafından bitirildi.', 'info'); }
+    if (H.active) {
+      stopHiitEngine();
+      $('tPhase').textContent = 'Durduruldu';
+      log('HIIT kullanıcı tarafından bitirildi.', 'info');
+      cmdStop();
+      endSession('HIIT Durduruldu');
+    }
     else startHiit();
   });
   $('btnHiitPause').addEventListener('click', () => pauseHiit());
@@ -814,6 +863,7 @@
     stopHiitEngine();
     $('tPhase').textContent = '⛔ ACİL DURDURULDU';
     state.targetSpeed = MIN_SPEED; updateSpeedUI();
+    endSession('Acil Durduruldu');
     if (state.protocol) {
       const p = state.protocol;
       // Kuyruğu atla – doğrudan gönder, ardından tekrar
@@ -825,6 +875,220 @@
     state.running = false;
   }
   $('btnEstop').addEventListener('click', emergencyStop);
+
+  // ===================== KALORİ & ANTRENMAN SEANSI =====================
+  const session = {
+    running: false,
+    startTime: null,
+    timer: null,
+    duration: 0,
+    distance: 0,
+    calories: 0,
+    speeds: [],
+    isHiit: false
+  };
+
+  function getUserWeight() {
+    return Math.max(30, Math.min(250, parseFloat($('userWeight').value) || 75));
+  }
+  const weightInput = $('userWeight');
+  if (weightInput) {
+    weightInput.value = localStorage.getItem('walke_user_weight') || '75';
+    weightInput.addEventListener('change', () => {
+      localStorage.setItem('walke_user_weight', weightInput.value);
+    });
+  }
+
+  function startSessionTimer(isHiit = false) {
+    if (session.running) return;
+    session.running = true;
+    session.startTime = Date.now();
+    session.duration = 0;
+    session.distance = 0;
+    session.calories = 0;
+    session.speeds = [];
+    session.isHiit = isHiit;
+    $('liveDist').textContent = '0.00';
+    $('liveTime').textContent = '00:00';
+    $('liveCal').textContent = '0';
+    clearInterval(session.timer);
+    session.timer = setInterval(sessionTick, 1000);
+  }
+
+  function sessionTick() {
+    if (!state.running || (state.hiit.active && state.hiit.paused)) return;
+    session.duration++;
+    const curSpeed = state.targetSpeed || 1.0;
+    session.speeds.push(curSpeed);
+    
+    // Mesafe (km) = hız (km/s) * (1 / 3600)
+    session.distance += (curSpeed / 3600);
+    
+    // Kalori hesabı (ACSM standart formülü)
+    const speedMMin = curSpeed * 16.6667;
+    const vo2 = curSpeed < 6.0 ? (0.1 * speedMMin + 3.5) : (0.2 * speedMMin + 3.5);
+    const weight = getUserWeight();
+    const kcalPerMin = (vo2 * weight / 1000) * 5;
+    session.calories += (kcalPerMin / 60);
+
+    $('liveTime').textContent = fmt(session.duration);
+    $('liveDist').textContent = session.distance.toFixed(2);
+    $('liveCal').textContent = Math.round(session.calories);
+  }
+
+  function endSession(status = 'Tamamlandı') {
+    if (!session.running) return;
+    clearInterval(session.timer);
+    session.running = false;
+    
+    if (session.duration >= 15) { // En az 15 saniyelik koşular loglanır
+      const avgSpeed = session.speeds.length ? (session.speeds.reduce((a,b)=>a+b, 0) / session.speeds.length) : (state.targetSpeed || 1.0);
+      const maxSpeed = session.speeds.length ? Math.max(...session.speeds) : (state.targetSpeed || 1.0);
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('tr-TR', { day:'numeric', month:'short' }) + ' ' + now.toLocaleTimeString('tr-TR', { hour:'2-digit', minute:'2-digit' });
+      
+      const newEntry = {
+        id: Date.now(),
+        date: dateStr,
+        type: session.isHiit ? 'HIIT Antrenmanı' : 'Manuel Koşu',
+        duration: fmt(session.duration),
+        durationSecs: session.duration,
+        distance: parseFloat(session.distance.toFixed(2)),
+        calories: Math.round(session.calories),
+        avgSpeed: parseFloat(avgSpeed.toFixed(1)),
+        maxSpeed: parseFloat(maxSpeed.toFixed(1)),
+        status: status
+      };
+
+      saveWorkoutLog(newEntry);
+      log(`📊 Antrenman kaydedildi: ${newEntry.distance} km, ${newEntry.calories} kcal, ${newEntry.duration}`, 'info');
+      showFeedback(`🎉 <b>Antrenman Kaydedildi!</b><br>Süre: ${newEntry.duration} · Mesafe: ${newEntry.distance} km · Kalori: ${newEntry.calories} kcal`, 'ok');
+    }
+  }
+
+  // ===================== LOG TUTUCU (GEÇMİŞ) =====================
+  function getWorkoutLogs() {
+    try {
+      const data = localStorage.getItem('walke_workout_history');
+      return data ? JSON.parse(data) : [];
+    } catch(e) { return []; }
+  }
+
+  function saveWorkoutLog(entry) {
+    const list = getWorkoutLogs();
+    list.unshift(entry);
+    try { localStorage.setItem('walke_workout_history', JSON.stringify(list)); } catch(e){}
+    renderWorkoutLogs();
+  }
+
+  function renderWorkoutLogs() {
+    const list = getWorkoutLogs();
+    const listEl = $('workoutList');
+    if (!listEl) return;
+    
+    if (list.length === 0) {
+      listEl.innerHTML = '<div class="muted" style="text-align:center;padding:16px" id="noLogsMsg">Henüz kayıtlı antrenman yok. Koşunuzu tamamladığınızda otomatik kaydedilir.</div>';
+      $('sumRuns').textContent = '0';
+      $('sumKm').textContent = '0.0';
+      $('sumTime').textContent = '00:00';
+      $('sumCal').textContent = '0';
+      return;
+    }
+
+    let totalKm = 0, totalSecs = 0, totalCal = 0;
+    listEl.innerHTML = '';
+
+    list.forEach((item) => {
+      totalKm += item.distance || 0;
+      totalSecs += item.durationSecs || 0;
+      totalCal += item.calories || 0;
+
+      const isCompleted = item.status === 'Tamamlandı';
+      const badgeCls = isCompleted ? 'badge-ok' : 'badge-stop';
+
+      const div = document.createElement('div');
+      div.className = 'log-item';
+      div.innerHTML = `
+        <div>
+          <div style="font-weight:700;display:flex;align-items:center;gap:6px">
+            <span>${item.type}</span>
+            <span class="${badgeCls}">${item.status}</span>
+          </div>
+          <div class="muted" style="margin-top:2px">${item.date} · Maks: ${item.maxSpeed} km/s</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:var(--primary);font-size:14px">${item.distance.toFixed(2)} km · ${item.calories} kcal</div>
+          <div class="muted" style="font-size:12px">⏱ ${item.duration} · Ort: ${item.avgSpeed.toFixed(1)} km/s</div>
+        </div>
+      `;
+      listEl.appendChild(div);
+    });
+
+    $('sumRuns').textContent = list.length;
+    $('sumKm').textContent = totalKm.toFixed(1);
+    $('sumTime').textContent = fmt(totalSecs);
+    $('sumCal').textContent = Math.round(totalCal);
+  }
+
+  $('btnClearLogs').addEventListener('click', () => {
+    if (confirm('Tüm antrenman geçmişi silinsin mi?')) {
+      localStorage.removeItem('walke_workout_history');
+      renderWorkoutLogs();
+      log('Antrenman geçmişi temizlendi.', 'info');
+    }
+  });
+
+  $('btnExportLogs').addEventListener('click', () => {
+    const list = getWorkoutLogs();
+    if (!list.length) return alert('Dışa aktarılacak kayıt bulunmuyor.');
+    
+    // UTF-8 BOM ekle (Excel'de Türkçe karakterlerin düzgün görünmesi için)
+    let csv = '\uFEFFTarih,Tür,Durum,Süre,Mesafe (km),Ort Hız (km/s),Maks Hız (km/s),Yakılan Kalori (kcal)\r\n';
+    list.forEach(i => {
+      csv += `"${i.date}","${i.type}","${i.status}","${i.duration}",${i.distance},${i.avgSpeed},${i.maxSpeed},${i.calories}\r\n`;
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `walke_antrenman_gecmisi_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // ===================== PWA KURULUMU =====================
+  let deferredPrompt = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    const btn = $('btnInstallPwa');
+    if (btn) btn.style.display = 'inline-block';
+    log('PWA kurulabilir durumda', 'info');
+  });
+
+  const pwaBtn = $('btnInstallPwa');
+  if (pwaBtn) {
+    pwaBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        log(`PWA kurulum seçimi: ${outcome}`, 'info');
+        deferredPrompt = null;
+        pwaBtn.style.display = 'none';
+      } else {
+        alert("Uygulamayı yüklemek için Chrome menüsündeki (sağ üst 3 nokta) 'Uygulamayı Yükle' veya 'Ana Ekrana Ekle' seçeneğini kullanabilirsiniz.");
+      }
+    });
+  }
+
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js').then(() => {
+      log('Service Worker devrede (PWA hazır)', 'info');
+    }).catch(err => {
+      log('Service Worker: ' + err.message, '');
+    });
+  }
 
   // ===================== ÖZEL HEX =====================
   function sendCustomHex() {
@@ -842,6 +1106,7 @@
 
   // ===================== BAŞLANGIÇ =====================
   updateSpeedUI();
+  renderWorkoutLogs();
   log('Uygulama hazır. "Bandı Bağla" ile başlayın.', 'info');
   log(`Örnek FitShow Start: ${toHex(Packets.fitshow.start())} | Stop: ${toHex(Packets.fitshow.stop())} | 4.0 km/s: ${toHex(Packets.fitshow.speed(4.0))}`, '');
   log(`Örnek FTMS 4.5 km/s: ${toHex(Packets.ftms.speed(4.5))}`, '');
