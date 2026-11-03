@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="theme-color" content="#ffffff">
+<title>Walke / FitShow HIIT Kontrol</title>
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --text:#1d2433; --muted:#6b7385; --border:#e2e6ef;
+    --primary:#2563eb; --primary-d:#1d4ed8; --ok:#16a34a; --warn:#f59e0b; --danger:#dc2626; --danger-d:#b91c1c;
+    --radius:14px; --shadow:0 2px 10px rgba(20,30,60,.07);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px}
+  body{padding-bottom:96px}
+  header{position:sticky;top:0;z-index:10;background:#fff;border-bottom:1px solid var(--border);padding:10px 14px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+  header h1{font-size:17px;margin:0}
+  .status{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+  .dot{width:10px;height:10px;border-radius:50%;background:#9ca3af}
+  .dot.on{background:var(--ok);box-shadow:0 0 0 3px rgba(22,163,74,.2)}
+  .dot.busy{background:var(--warn)}
+  main{max-width:820px;margin:0 auto;padding:12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+  .card h2{font-size:15px;margin:0 0 10px;color:var(--text);display:flex;align-items:center;justify-content:space-between}
+  .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .grow{flex:1 1 auto}
+  button{font:inherit;border:none;border-radius:10px;padding:11px 14px;font-weight:600;cursor:pointer;background:#eef2f9;color:var(--text);transition:transform .05s,background .15s}
+  button:active{transform:scale(.97)}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .btn-primary{background:var(--primary);color:#fff}
+  .btn-primary:active{background:var(--primary-d)}
+  .btn-ok{background:var(--ok);color:#fff}
+  .btn-danger{background:var(--danger);color:#fff}
+  .btn-outline{background:#fff;border:1px solid var(--border)}
+  select,input[type=text],input[type=number]{font:inherit;padding:10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);min-width:0}
+  label.switch{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+  .switch input{display:none}
+  .slider{width:46px;height:26px;border-radius:13px;background:#cbd2df;position:relative;flex:none;transition:background .2s}
+  .slider::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+  .switch input:checked + .slider{background:var(--ok)}
+  .switch input:checked + .slider::after{left:23px}
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+  .stat{background:#f7f9fd;border:1px solid var(--border);border-radius:12px;padding:10px;text-align:center}
+  .stat .v{font-size:22px;font-weight:700}
+  .stat .l{font-size:12px;color:var(--muted)}
+  .speed-big{font-size:54px;font-weight:800;text-align:center;line-height:1;margin:6px 0}
+  .speed-big small{font-size:18px;color:var(--muted);font-weight:600}
+  .grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+  .timer{text-align:center}
+  .timer .phase{font-size:20px;font-weight:700;color:var(--primary)}
+  .timer .count{font-size:84px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1.05}
+  .timer .sub{display:flex;justify-content:space-around;color:var(--muted);font-size:14px;margin-top:6px}
+  .timer .sub b{color:var(--text);font-size:18px;display:block}
+  .progress{height:8px;background:#e7ebf3;border-radius:4px;overflow:hidden;margin-top:10px}
+  .progress > div{height:100%;width:0;background:var(--primary);transition:width .3s linear}
+  .next{margin-top:8px;font-size:13px;color:var(--muted);text-align:center}
+  table{width:100%;border-collapse:collapse}
+  th{font-size:12px;color:var(--muted);text-align:left;padding:4px}
+  td{padding:4px}
+  td input{width:100%}
+  tr.active td{background:#e8f0ff}
+  tr.active td:first-child{border-left:4px solid var(--primary)}
+  .del{background:#fdecec;color:var(--danger);padding:10px 12px}
+  #log{background:#0f172a;color:#d1d5db;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;height:240px;overflow-y:auto;border-radius:10px;padding:8px;white-space:pre-wrap;word-break:break-all}
+  #log .tx{color:#60a5fa} #log .rx{color:#4ade80} #log .err{color:#f87171} #log .info{color:#fbbf24}
+  .estop{position:fixed;left:0;right:0;bottom:0;z-index:20;padding:10px;background:rgba(255,255,255,.92);backdrop-filter:blur(6px);border-top:1px solid var(--border)}
+  .estop button{width:100%;max-width:820px;display:block;margin:0 auto;background:var(--danger);color:#fff;font-size:22px;font-weight:900;padding:18px;border-radius:16px;letter-spacing:.5px;box-shadow:0 4px 16px rgba(220,38,38,.4)}
+  .estop button:active{background:var(--danger-d)}
+  .muted{color:var(--muted);font-size:12px}
+  .warnbox{background:#fff7e6;border:1px solid #fcd38d;color:#8a5300;padding:10px;border-radius:10px;font-size:13px;display:none;margin-bottom:12px}
+  @media (max-width:520px){
+    .timer .count{font-size:68px}
+    .speed-big{font-size:46px}
+    th:nth-child(1),td:nth-child(1){width:38%}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏃 Walke HIIT</h1>
+  <div class="status"><span class="dot" id="statusDot"></span><span id="statusText">Bağlı değil</span></div>
+</header>
+
+<main>
+  <div class="warnbox" id="compatWarn"></div>
+
+  <!-- BAĞLANTI -->
+  <section class="card">
+    <h2>Bluetooth Bağlantısı</h2>
+    <div class="row" style="margin-bottom:10px">
+      <button class="btn-primary grow" id="btnConnect">🔗 Bandı Bağla</button>
+      <button class="btn-outline" id="btnDisconnect" disabled>Bağlantıyı Kes</button>
+    </div>
+    <div class="row" style="margin-bottom:10px">
+      <span class="muted">Protokol:</span>
+      <select id="protocolSelect" class="grow">
+        <option value="auto">Otomatik Algıla</option>
+        <option value="fitshow">FitShow FFF0</option>
+        <option value="ftms">Standart FTMS 1826</option>
+      </select>
+    </div>
+    <div class="row" style="justify-content:space-between">
+      <label class="switch"><input type="checkbox" id="keepAlive"><span class="slider"></span><span>Saniyelik Keep-Alive Paketi Gönder</span></label>
+      <label class="switch"><input type="checkbox" id="wakeLockToggle" checked><span class="slider"></span><span>Ekranı Açık Tut</span></label>
+    </div>
+    <div class="muted" style="margin-top:8px">Cihaz: <b id="devName">-</b> · Aktif protokol: <b id="activeProto">-</b> · Wake Lock: <b id="wlState">-</b></div>
+  </section>
+
+  <!-- CANLI VERİ + MANUEL -->
+  <section class="card">
+    <h2>Manuel Kontrol</h2>
+    <div class="speed-big"><span id="targetSpeed">0.0</span> <small>km/s hedef</small></div>
+    <div class="stats" style="margin-bottom:10px">
+      <div class="stat"><div class="v" id="liveSpeed">-</div><div class="l">Banttan Hız</div></div>
+      <div class="stat"><div class="v" id="liveDist">-</div><div class="l">Mesafe (km)</div></div>
+      <div class="stat"><div class="v" id="liveTime">-</div><div class="l">Süre</div></div>
+    </div>
+    <div class="row" style="margin-bottom:8px">
+      <button class="btn-ok grow" id="btnStart">▶ Başlat</button>
+      <button class="btn-outline grow" id="btnStop">■ Durdur</button>
+    </div>
+    <div class="grid4" style="margin-bottom:8px">
+      <button data-delta="-0.5">−0.5</button>
+      <button data-delta="-0.1">−0.1</button>
+      <button data-delta="0.1">+0.1</button>
+      <button data-delta="0.5">+0.5</button>
+    </div>
+    <div class="grid4">
+      <button class="btn-outline" data-speed="2.0">2.0</button>
+      <button class="btn-outline" data-speed="3.5">3.5</button>
+      <button class="btn-outline" data-speed="5.0">5.0</button>
+      <button class="btn-outline" data-speed="6.0">6.0</button>
+    </div>
+  </section>
+
+  <!-- HIIT ZAMANLAYICI -->
+  <section class="card timer">
+    <div class="phase" id="tPhase">Hazır</div>
+    <div class="count" id="tCount">00:00</div>
+    <div class="sub">
+      <div>Hedef Hız<b id="tSpeed">-</b></div>
+      <div>Aşama<b id="tStep">-</b></div>
+      <div>Toplam Kalan<b id="tTotal">00:00</b></div>
+    </div>
+    <div class="progress"><div id="tProg"></div></div>
+    <div class="next" id="tNext"></div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn-primary grow" id="btnHiitStart">🔥 HIIT Başlat</button>
+      <button class="btn-outline" id="btnHiitPause" disabled>⏸ Duraklat</button>
+      <button class="btn-outline" id="btnHiitSkip" disabled>⏭ Atla</button>
+    </div>
+  </section>
+
+  <!-- PROGRAM TABLOSU -->
+  <section class="card">
+    <h2>HIIT Programı <span class="muted" id="progTotal"></span></h2>
+    <table>
+      <thead><tr><th>Aşama Adı</th><th>Süre (sn)</th><th>Hız (km/s)</th><th></th></tr></thead>
+      <tbody id="progBody"></tbody>
+    </table>
+    <div class="row" style="margin-top:10px">
+      <button class="btn-outline grow" id="btnAddRow">＋ Satır Ekle</button>
+      <button class="btn-outline" id="btnResetProg">Varsayılan</button>
+    </div>
+  </section>
+
+  <!-- DEBUG -->
+  <section class="card">
+    <h2>Canlı Debug Konsolu <button class="btn-outline" id="btnClearLog" style="padding:6px 10px;font-size:12px">Temizle</button></h2>
+    <div id="log"></div>
+    <div class="row" style="margin-top:10px">
+      <input type="text" id="hexInput" class="grow" placeholder="02 53 02 28 00 79 03" autocomplete="off" autocapitalize="characters">
+      <button class="btn-primary" id="btnSendHex">Özel Hex Gönder</button>
+    </div>
+    <div class="row" style="margin-top:6px">
+      <label class="switch"><input type="checkbox" id="autoChecksum"><span class="slider"></span><span class="muted">FitShow: XOR checksum + 02/03 çerçeveyi otomatik ekle (sadece KOMUT ALT VERİ yaz)</span></label>
+    </div>
+  </section>
+</main>
+
+<div class="estop"><button id="btnEstop">⛔ ACİL DURDUR (EMERGENCY STOP)</button></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ===================== SABİTLER =====================
+  const UUID = {
+    FITSHOW_SERVICE: '0000fff0-0000-1000-8000-00805f9b34fb',
+    FITSHOW_WRITE:   '0000fff2-0000-1000-8000-00805f9b34fb',
+    FITSHOW_NOTIFY:  '0000fff1-0000-1000-8000-00805f9b34fb',
+    FTMS_SERVICE:    '00001826-0000-1000-8000-00805f9b34fb',
+    FTMS_CONTROL:    '00002ad9-0000-1000-8000-00805f9b34fb',
+    FTMS_DATA:       '00002acd-0000-1000-8000-00805f9b34fb'
+  };
+  const MIN_SPEED = 0.5, MAX_SPEED = 12.0;
+  const DEFAULT_PROGRAM = [
+    { name: 'Isınma',  dur: 180, speed: 3.5 },
+    { name: 'Hızlı',   dur: 60,  speed: 7.0 },
+    { name: 'Yavaş',   dur: 90,  speed: 4.0 },
+    { name: 'Hızlı',   dur: 60,  speed: 7.5 },
+    { name: 'Soğuma',  dur: 180, speed: 3.0 }
+  ];
+
+  // ===================== DURUM =====================
+  const state = {
+    device: null, server: null,
+    protocol: null,            // 'fitshow' | 'ftms'
+    available: { fitshow: null, ftms: null }, // {write, notify}
+    writeChar: null, notifyChar: null,
+    targetSpeed: 0, running: false,
+    keepAliveTimer: null, writeQueue: Promise.resolve(),
+    wakeLock: null,
+    hiit: { active: false, paused: false, idx: 0, remaining: 0, timer: null, steps: [] }
+  };
+
+  const $ = id => document.getElementById(id);
+
+  // ===================== LOG =====================
+  const logEl = $('log');
+  function log(msg, cls = '') {
+    const t = new Date();
+    const ts = t.toTimeString().slice(0, 8) + '.' + String(t.getMilliseconds()).padStart(3, '0');
+    const line = document.createElement('div');
+    if (cls) line.className = cls;
+    line.textContent = `[${ts}] ${msg}`;
+    logEl.appendChild(line);
+    while (logEl.childNodes.length > 600) logEl.removeChild(logEl.firstChild);
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+  const toHex = arr => Array.from(arr).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+
+  // ===================== UI DURUM =====================
+  function setStatus(text, mode) {
+    $('statusText').textContent = text;
+    const d = $('statusDot');
+    d.className = 'dot' + (mode === 'on' ? ' on' : mode === 'busy' ? ' busy' : '');
+  }
+  function updateSpeedUI() { $('targetSpeed').textContent = state.targetSpeed.toFixed(1); }
+  const fmt = s => { s = Math.max(0, Math.round(s)); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
+
+  // ===================== UYUMLULUK =====================
+  if (!navigator.bluetooth) {
+    const w = $('compatWarn');
+    w.style.display = 'block';
+    w.innerHTML = '⚠️ Bu tarayıcı Web Bluetooth desteklemiyor. Android Chrome kullanın ve sayfayı <b>HTTPS</b> veya <b>localhost</b> üzerinden açın.';
+  }
+
+  // ===================== PAKET OLUŞTURUCULAR =====================
+  function fitshowFrame(payload) {
+    let cs = 0;
+    for (const b of payload) cs ^= b;
+    return new Uint8Array([0x02, ...payload, cs & 0xff, 0x03]);
+  }
+  const Packets = {
+    fitshow: {
+      start: () => fitshowFrame([0x53, 0x01, 0x00, 0x00, 0x00, 0x00]),   // 02 53 01 00 00 00 00 52 03
+      stop:  () => fitshowFrame([0x53, 0x03]),                          // 02 53 03 50 03
+      speed: v => fitshowFrame([0x53, 0x02, Math.round(v * 10) & 0xff, 0x00])
+    },
+    ftms: {
+      requestControl: () => new Uint8Array([0x00]),
+      start: () => new Uint8Array([0x07]),
+      stop:  () => new Uint8Array([0x08, 0x01]),
+      speed: v => { const s = Math.round(v * 100); return new Uint8Array([0x02, s & 0xff, (s >> 8) & 0xff]); }
+    }
+  };
+
+  // ===================== YAZMA (KUYRUKLU) =====================
+  function write(bytes, label = '') {
+    if (!state.writeChar) { log(`TX iptal (bağlı değil): ${toHex(bytes)} ${label}`, 'err'); return Promise.resolve(false); }
+    const ch = state.writeChar;
+    state.writeQueue = state.writeQueue.then(async () => {
+      try {
+        if (ch.properties.writeWithoutResponse && !ch.properties.write && ch.writeValueWithoutResponse) {
+          await ch.writeValueWithoutResponse(bytes);
+        } else if (ch.writeValueWithResponse) {
+          await ch.writeValueWithResponse(bytes);
+        } else {
+          await ch.writeValue(bytes);
+        }
+        log(`TX → ${toHex(bytes)} ${label}`, 'tx');
+        return true;
+      } catch (e) {
+        log(`TX HATA ${toHex(bytes)}: ${e.message}`, 'err');
+        return false;
+      }
+    });
+    return state.writeQueue;
+  }
+
+  // ===================== YÜKSEK SEVİYE KOMUTLAR =====================
+  async function cmdStart() {
+    if (!state.protocol) return log('Önce bağlanın.', 'err');
+    if (state.protocol === 'ftms') await write(Packets.ftms.requestControl(), '(Request Control)');
+    await write(Packets[state.protocol].start(), '(Start)');
+    state.running = true;
+    if (state.targetSpeed < MIN_SPEED) setSpeed(1.0); else await sendSpeed();
+  }
+  async function cmdStop() {
+    if (!state.protocol) return;
+    await write(Packets[state.protocol].stop(), '(Stop)');
+    state.running = false;
+  }
+  async function sendSpeed() {
+    if (!state.protocol) return;
+    await write(Packets[state.protocol].speed(state.targetSpeed), `(Hız ${state.targetSpeed.toFixed(1)})`);
+  }
+  function clampSpeed(v) { return Math.min(MAX_SPEED, Math.max(MIN_SPEED, Math.round(v * 10) / 10)); }
+  function setSpeed(v) {
+    state.targetSpeed = clampSpeed(v);
+    updateSpeedUI();
+    sendSpeed();
+  }
+
+  // ===================== KEEP-ALIVE =====================
+  function updateKeepAlive() {
+    clearInterval(state.keepAliveTimer);
+    state.keepAliveTimer = null;
+    if ($('keepAlive').checked && state.writeChar) {
+      state.keepAliveTimer = setInterval(() => {
+        if (state.protocol && state.running && state.targetSpeed >= MIN_SPEED) {
+          write(Packets[state.protocol].speed(state.targetSpeed), '(Keep-Alive)');
+        }
+      }, 1000);
+      log('Keep-Alive aktif (1 sn)', 'info');
+    }
+  }
+  $('keepAlive').addEventListener('change', updateKeepAlive);
+
+  // ===================== BİLDİRİM AYRIŞTIRMA =====================
+  function onNotify(ev, src) {
+    const dv = ev.target.value;
+    const bytes = new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength);
+    log(`RX ← [${src}] ${toHex(bytes)}`, 'rx');
+    try {
+      if (src === 'FTMS') parseFtms(dv);
+      else if (src === 'FitShow') parseFitshow(bytes);
+    } catch (e) { /* ayrıştırma hatası önemsiz */ }
+  }
+  function parseFtms(dv) {
+    // Treadmill Data (0x2ACD)
+    if (dv.byteLength < 2) return;
+    const flags = dv.getUint16(0, true);
+    let o = 2;
+    if (!(flags & 0x0001)) { $('liveSpeed').textContent = (dv.getUint16(o, true) / 100).toFixed(1); o += 2; }
+    if (flags & 0x0002) o += 2;                       // average speed
+    if (flags & 0x0004) {                             // total distance uint24 (m)
+      const d = dv.getUint8(o) | (dv.getUint8(o + 1) << 8) | (dv.getUint8(o + 2) << 16);
+      $('liveDist').textContent = (d / 1000).toFixed(2); o += 3;
+    }
+    if (flags & 0x0008) o += 4;                       // inclination + ramp
+    if (flags & 0x0010) o += 4;                       // elevation gain
+    if (flags & 0x0020) o += 1;                       // inst pace
+    if (flags & 0x0040) o += 1;                       // avg pace
+    if (flags & 0x0080) o += 5;                       // energy
+    if (flags & 0x0100) o += 1;                       // heart rate
+    if (flags & 0x0200) o += 1;                       // MET
+    if (flags & 0x0400) { $('liveTime').textContent = fmt(dv.getUint16(o, true)); o += 2; } // elapsed
+  }
+  function parseFitshow(b) {
+    // Yaygın FitShow durum yanıtı: 02 51 STATUS SPEED INCL TIME_L TIME_H DIST_L DIST_H ... CS 03
+    if (b.length >= 9 && b[0] === 0x02 && b[1] === 0x51) {
+      const sp = b[3] / 10;
+      if (sp > 0 && sp <= 25) $('liveSpeed').textContent = sp.toFixed(1);
+      const t = b[5] | (b[6] << 8);
+      $('liveTime').textContent = fmt(t);
+      const d = b[7] | (b[8] << 8);
+      $('liveDist').textContent = (d / 1000).toFixed(2);
+    }
+  }
+
+  // ===================== BAĞLANTI =====================
+  async function connect() {
+    if (!navigator.bluetooth) return log('Web Bluetooth desteklenmiyor.', 'err');
+    try {
+      setStatus('Cihaz seçiliyor…', 'busy');
+      log('Cihaz seçimi isteniyor…', 'info');
+      const device = await navigator.bluetooth.requestDevice({
+        acceptAllDevices: true,
+        optionalServices: [UUID.FITSHOW_SERVICE, UUID.FTMS_SERVICE, 0xfff0, 0x1826]
+      });
+      state.device = device;
+      $('devName').textContent = device.name || '(isimsiz)';
+      device.addEventListener('gattserverdisconnected', onDisconnected);
+      log(`Seçildi: ${device.name || device.id}`, 'info');
+      await connectGatt();
+    } catch (e) {
+      log(`Bağlantı hatası: ${e.message}`, 'err');
+      setStatus('Bağlı değil', '');
+    }
+  }
+
+  async function connectGatt() {
+    setStatus('Bağlanıyor…', 'busy');
+    state.server = await state.device.gatt.connect();
+    log('GATT bağlandı. Servisler aranıyor…', 'info');
+    state.available = { fitshow: null, ftms: null };
+
+    try {
+      const s = await state.server.getPrimaryService(UUID.FITSHOW_SERVICE);
+      const w = await s.getCharacteristic(UUID.FITSHOW_WRITE);
+      let n = null; try { n = await s.getCharacteristic(UUID.FITSHOW_NOTIFY); } catch (e) {}
+      state.available.fitshow = { write: w, notify: n };
+      log('✔ FitShow FFF0 servisi bulundu', 'info');
+    } catch (e) { log('FitShow FFF0 servisi yok', ''); }
+
+    try {
+      const s = await state.server.getPrimaryService(UUID.FTMS_SERVICE);
+      const w = await s.getCharacteristic(UUID.FTMS_CONTROL);
+      let n = null; try { n = await s.getCharacteristic(UUID.FTMS_DATA); } catch (e) {}
+      state.available.ftms = { write: w, notify: n };
+      log('✔ FTMS 1826 servisi bulundu', 'info');
+      // Control Point yanıtları (indicate)
+      try {
+        await w.startNotifications();
+        w.addEventListener('characteristicvaluechanged', ev => onNotify(ev, 'FTMS-CP'));
+      } catch (e) { log('FTMS CP indicate açılamadı: ' + e.message, ''); }
+    } catch (e) { log('FTMS 1826 servisi yok', ''); }
+
+    if (!state.available.fitshow && !state.available.ftms) {
+      log('Desteklenen servis bulunamadı!', 'err');
+      setStatus('Servis yok', 'busy');
+      return;
+    }
+    await applyProtocol($('protocolSelect').value);
+    $('btnDisconnect').disabled = false;
+    setStatus('Bağlı', 'on');
+    requestWakeLock();
+  }
+
+  async function applyProtocol(choice) {
+    let p = choice;
+    if (p === 'auto') p = state.available.fitshow ? 'fitshow' : (state.available.ftms ? 'ftms' : null);
+    if (!p) return;
+    if (!state.available[p]) {
+      log(`Seçilen protokol (${p}) cihazda yok, mevcut olana dönülüyor.`, 'err');
+      p = state.available.fitshow ? 'fitshow' : 'ftms';
+    }
+    // Eski notify'ı kapat
+    if (state.notifyChar && state.notifyChar !== state.available[p].notify) {
+      try { await state.notifyChar.stopNotifications(); } catch (e) {}
+      state.notifyChar.removeEventListener('characteristicvaluechanged', state._notifyHandler || (() => {}));
+    }
+    state.protocol = p;
+    state.writeChar = state.available[p].write;
+    state.notifyChar = state.available[p].notify;
+    $('activeProto').textContent = p === 'fitshow' ? 'FitShow FFF0' : 'FTMS 1826';
+    log(`Aktif protokol: ${$('activeProto').textContent}`, 'info');
+
+    if (state.notifyChar) {
+      const src = p === 'ftms' ? 'FTMS' : 'FitShow';
+      state._notifyHandler = ev => onNotify(ev, src);
+      try {
+        await state.notifyChar.startNotifications();
+        state.notifyChar.addEventListener('characteristicvaluechanged', state._notifyHandler);
+        log(`Notify açıldı (${src})`, 'info');
+      } catch (e) { log('Notify açılamadı: ' + e.message, 'err'); }
+    }
+    if (p === 'ftms') await write(Packets.ftms.requestControl(), '(Request Control)');
+    updateKeepAlive();
+  }
+
+  function onDisconnected() {
+    log('Bağlantı koptu!', 'err');
+    setStatus('Bağlantı koptu', '');
+    state.writeChar = null; state.notifyChar = null; state.protocol = null; state.running = false;
+    clearInterval(state.keepAliveTimer);
+    $('activeProto').textContent = '-';
+    $('btnDisconnect').disabled = true;
+    if (state.hiit.active) { pauseHiit(true); log('HIIT duraklatıldı (bağlantı kesildi).', 'info'); }
+    // Otomatik yeniden bağlanma denemesi
+    if (state.device && !state._manualDisconnect) {
+      let tries = 0;
+      const retry = async () => {
+        if (tries++ >= 3 || state.writeChar) return;
+        log(`Yeniden bağlanma denemesi ${tries}/3…`, 'info');
+        try { await connectGatt(); } catch (e) { log('Deneme başarısız: ' + e.message, 'err'); setTimeout(retry, 2000); }
+      };
+      setTimeout(retry, 1500);
+    }
+    state._manualDisconnect = false;
+  }
+
+  function disconnect() {
+    if (state.device && state.device.gatt.connected) {
+      state._manualDisconnect = true;
+      state.device.gatt.disconnect();
+    }
+  }
+
+  $('btnConnect').addEventListener('click', connect);
+  $('btnDisconnect').addEventListener('click', disconnect);
+  $('protocolSelect').addEventListener('change', e => { if (state.server && state.server.connected) applyProtocol(e.target.value); });
+
+  // ===================== WAKE LOCK =====================
+  async function requestWakeLock() {
+    if (!$('wakeLockToggle').checked) return;
+    if (!('wakeLock' in navigator)) { $('wlState').textContent = 'desteklenmiyor'; return; }
+    try {
+      if (state.wakeLock) return;
+      state.wakeLock = await navigator.wakeLock.request('screen');
+      $('wlState').textContent = 'aktif';
+      log('Screen Wake Lock aktif', 'info');
+      state.wakeLock.addEventListener('release', () => { state.wakeLock = null; $('wlState').textContent = 'pasif'; });
+    } catch (e) { $('wlState').textContent = 'hata'; log('Wake Lock hatası: ' + e.message, 'err'); }
+  }
+  async function releaseWakeLock() { if (state.wakeLock) { await state.wakeLock.release(); state.wakeLock = null; } }
+  $('wakeLockToggle').addEventListener('change', e => e.target.checked ? requestWakeLock() : releaseWakeLock());
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') requestWakeLock(); });
+  document.addEventListener('click', () => { if (!state.wakeLock) requestWakeLock(); }, { once: true });
+
+  // ===================== SES =====================
+  let audioCtx = null;
+  function beep(freq = 880, dur = 0.15, count = 1) {
+    try {
+      audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      for (let i = 0; i < count; i++) {
+        const t0 = audioCtx.currentTime + i * (dur + 0.08);
+        const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+        o.type = 'square'; o.frequency.value = freq;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.3, t0 + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+        o.connect(g).connect(audioCtx.destination);
+        o.start(t0); o.stop(t0 + dur + 0.02);
+      }
+    } catch (e) {}
+    if (navigator.vibrate) navigator.vibrate(count > 1 ? [150, 80, 150] : 120);
+  }
+
+  // ===================== MANUEL KONTROLLER =====================
+  $('btnStart').addEventListener('click', () => { beep(660, 0.08); cmdStart(); });
+  $('btnStop').addEventListener('click', () => { cmdStop(); });
+  document.querySelectorAll('[data-delta]').forEach(b => b.addEventListener('click', () => {
+    const base = state.targetSpeed < MIN_SPEED ? MIN_SPEED : state.targetSpeed;
+    setSpeed(base + parseFloat(b.dataset.delta));
+  }));
+  document.querySelectorAll('[data-speed]').forEach(b => b.addEventListener('click', () => setSpeed(parseFloat(b.dataset.speed))));
+
+  // ===================== PROGRAM TABLOSU =====================
+  const tbody = $('progBody');
+  function addRow(step = { name: 'Yeni Aşama', dur: 60, speed: 4.0 }) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" class="p-name"></td>
+      <td><input type="number" class="p-dur" min="1" step="1" inputmode="numeric"></td>
+      <td><input type="number" class="p-speed" min="0.5" max="12" step="0.1" inputmode="decimal"></td>
+      <td><button class="del" title="Sil">✕</button></td>`;
+    tr.querySelector('.p-name').value = step.name;
+    tr.querySelector('.p-dur').value = step.dur;
+    tr.querySelector('.p-speed').value = step.speed.toFixed(1);
+    tr.querySelector('.del').addEventListener('click', () => {
+      if (state.hiit.active) return log('HIIT çalışırken satır silinemez.', 'err');
+      tr.remove(); saveProgram();
+    });
+    tr.querySelectorAll('input').forEach(i => i.addEventListener('change', () => {
+      const sp = tr.querySelector('.p-speed');
+      let v = parseFloat(sp.value); if (isNaN(v)) v = 4; sp.value = clampSpeed(v).toFixed(1);
+      const d = tr.querySelector('.p-dur'); let dv = parseInt(d.value); if (isNaN(dv) || dv < 1) dv = 1; d.value = dv;
+      saveProgram();
+    }));
+    tbody.appendChild(tr);
+  }
+  function readProgram() {
+    return Array.from(tbody.querySelectorAll('tr')).map(tr => ({
+      name: tr.querySelector('.p-name').value.trim() || 'Aşama',
+      dur: Math.max(1, parseInt(tr.querySelector('.p-dur').value) || 1),
+      speed: clampSpeed(parseFloat(tr.querySelector('.p-speed').value) || MIN_SPEED)
+    }));
+  }
+  function saveProgram() {
+    const p = readProgram();
+    try { localStorage.setItem('walke_hiit_program', JSON.stringify(p)); } catch (e) {}
+    $('progTotal').textContent = `Toplam: ${fmt(p.reduce((a, s) => a + s.dur, 0))}`;
+    if (!state.hiit.active) $('tTotal').textContent = fmt(p.reduce((a, s) => a + s.dur, 0));
+  }
+  function loadProgram(list) { tbody.innerHTML = ''; list.forEach(addRow); saveProgram(); }
+  $('btnAddRow').addEventListener('click', () => { addRow(); saveProgram(); });
+  $('btnResetProg').addEventListener('click', () => { if (!state.hiit.active) loadProgram(DEFAULT_PROGRAM); });
+  (() => {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem('walke_hiit_program')); } catch (e) {}
+    loadProgram(Array.isArray(saved) && saved.length ? saved : DEFAULT_PROGRAM);
+  })();
+
+  // ===================== HIIT MOTORU =====================
+  const H = state.hiit;
+  function highlightRow(i) { tbody.querySelectorAll('tr').forEach((tr, k) => tr.classList.toggle('active', k === i)); }
+  function totalRemaining() { let t = H.remaining; for (let i = H.idx + 1; i < H.steps.length; i++) t += H.steps[i].dur; return t; }
+  function renderTimer() {
+    const s = H.steps[H.idx];
+    if (!s) return;
+    $('tPhase').textContent = s.name;
+    $('tCount').textContent = fmt(H.remaining);
+    $('tSpeed').textContent = s.speed.toFixed(1) + ' km/s';
+    $('tStep').textContent = `${H.idx + 1}/${H.steps.length}`;
+    $('tTotal').textContent = fmt(totalRemaining());
+    $('tProg').style.width = ((s.dur - H.remaining) / s.dur * 100) + '%';
+    const n = H.steps[H.idx + 1];
+    $('tNext').textContent = n ? `Sıradaki: ${n.name} · ${n.speed.toFixed(1)} km/s · ${fmt(n.dur)}` : 'Son aşama';
+  }
+  function enterStep(i) {
+    H.idx = i;
+    const s = H.steps[i];
+    H.remaining = s.dur;
+    highlightRow(i);
+    beep(i === 0 ? 660 : 1000, 0.18, 2);
+    log(`HIIT Aşama ${i + 1}: ${s.name} – ${s.speed.toFixed(1)} km/s – ${s.dur} sn`, 'info');
+    setSpeed(s.speed);
+    renderTimer();
+  }
+  function tick() {
+    if (H.paused) return;
+    H.remaining--;
+    if (H.remaining > 0 && H.remaining <= 3) beep(600, 0.08);
+    if (H.remaining <= 0) {
+      if (H.idx + 1 < H.steps.length) enterStep(H.idx + 1);
+      else return finishHiit();
+    }
+    renderTimer();
+  }
+  async function startHiit() {
+    H.steps = readProgram();
+    if (!H.steps.length) return log('Program boş!', 'err');
+    if (!state.protocol) log('Uyarı: Bant bağlı değil, zamanlayıcı yine de çalışacak.', 'err');
+    H.active = true; H.paused = false;
+    $('btnHiitStart').textContent = '⏹ HIIT Bitir';
+    $('btnHiitPause').disabled = false; $('btnHiitSkip').disabled = false; $('btnHiitPause').textContent = '⏸ Duraklat';
+    requestWakeLock();
+    if (state.protocol && !state.running) {
+      if (state.protocol === 'ftms') await write(Packets.ftms.requestControl(), '(Request Control)');
+      await write(Packets[state.protocol].start(), '(Start)');
+      state.running = true;
+    }
+    enterStep(0);
+    clearInterval(H.timer);
+    H.timer = setInterval(tick, 1000);
+  }
+  function stopHiitEngine() {
+    clearInterval(H.timer); H.timer = null;
+    H.active = false; H.paused = false;
+    highlightRow(-1);
+    $('btnHiitStart').textContent = '🔥 HIIT Başlat';
+    $('btnHiitPause').disabled = true; $('btnHiitSkip').disabled = true;
+  }
+  function finishHiit() {
+    stopHiitEngine();
+    beep(1200, 0.4, 3);
+    $('tPhase').textContent = '✅ Tamamlandı';
+    $('tCount').textContent = '00:00'; $('tTotal').textContent = '00:00'; $('tProg').style.width = '100%';
+    $('tNext').textContent = '';
+    log('HIIT programı tamamlandı.', 'info');
+    state.targetSpeed = MIN_SPEED; updateSpeedUI(); sendSpeed();
+    cmdStop();
+  }
+  function pauseHiit(force) {
+    if (!H.active) return;
+    H.paused = force === true ? true : !H.paused;
+    $('btnHiitPause').textContent = H.paused ? '▶ Devam' : '⏸ Duraklat';
+    $('tPhase').textContent = H.paused ? '⏸ Duraklatıldı' : H.steps[H.idx].name;
+    if (!H.paused && state.protocol) setSpeed(H.steps[H.idx].speed);
+    log(H.paused ? 'HIIT duraklatıldı' : 'HIIT devam ediyor', 'info');
+  }
+  $('btnHiitStart').addEventListener('click', () => {
+    if (H.active) { stopHiitEngine(); $('tPhase').textContent = 'Durduruldu'; log('HIIT kullanıcı tarafından bitirildi.', 'info'); }
+    else startHiit();
+  });
+  $('btnHiitPause').addEventListener('click', () => pauseHiit());
+  $('btnHiitSkip').addEventListener('click', () => {
+    if (!H.active) return;
+    if (H.idx + 1 < H.steps.length) enterStep(H.idx + 1); else finishHiit();
+  });
+
+  // ===================== ACİL DURDUR =====================
+  async function emergencyStop() {
+    log('⛔ ACİL DURDUR!', 'err');
+    beep(300, 0.5, 1);
+    stopHiitEngine();
+    $('tPhase').textContent = '⛔ ACİL DURDURULDU';
+    state.targetSpeed = MIN_SPEED; updateSpeedUI();
+    if (state.protocol) {
+      const p = state.protocol;
+      // Kuyruğu atla – doğrudan gönder, ardından tekrar
+      state.writeQueue = Promise.resolve();
+      await write(Packets[p].speed(MIN_SPEED), '(ACİL min hız)');
+      await write(Packets[p].stop(), '(ACİL Stop)');
+      setTimeout(() => write(Packets[p].stop(), '(ACİL Stop tekrar)'), 300);
+    }
+    state.running = false;
+  }
+  $('btnEstop').addEventListener('click', emergencyStop);
+
+  // ===================== ÖZEL HEX =====================
+  function sendCustomHex() {
+    const raw = $('hexInput').value.replace(/0x/gi, '').replace(/[^0-9a-f]/gi, '');
+    if (!raw.length || raw.length % 2) return log('Geçersiz hex (çift sayıda karakter olmalı).', 'err');
+    let bytes = [];
+    for (let i = 0; i < raw.length; i += 2) bytes.push(parseInt(raw.substr(i, 2), 16));
+    let out = new Uint8Array(bytes);
+    if ($('autoChecksum').checked) out = fitshowFrame(bytes);
+    write(out, '(Özel)');
+  }
+  $('btnSendHex').addEventListener('click', sendCustomHex);
+  $('hexInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendCustomHex(); });
+  $('btnClearLog').addEventListener('click', () => { logEl.innerHTML = ''; });
+
+  // ===================== BAŞLANGIÇ =====================
+  updateSpeedUI();
+  log('Uygulama hazır. "Bandı Bağla" ile başlayın.', 'info');
+  log(`Örnek FitShow Start: ${toHex(Packets.fitshow.start())} | Stop: ${toHex(Packets.fitshow.stop())} | 4.0 km/s: ${toHex(Packets.fitshow.speed(4.0))}`, '');
+  log(`Örnek FTMS 4.5 km/s: ${toHex(Packets.ftms.speed(4.5))}`, '');
+})();
+</script>
+</body>
+</html>
