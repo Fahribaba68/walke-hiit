@@ -4,7 +4,10 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="theme-color" content="#ffffff">
-<title>Walke / FitShow HIIT Kontrol</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>Walke / FitShow HIIT Kontrol (v1.2)</title>
 <style>
   :root{
     --bg:#f4f6fb; --card:#ffffff; --text:#1d2433; --muted:#6b7385; --border:#e2e6ef;
@@ -103,9 +106,10 @@
   <section class="card">
     <h2>Bluetooth Bağlantısı</h2>
     <div class="row" style="margin-bottom:10px">
-      <button class="btn-primary grow" id="btnConnect">🔗 Bandı Bağla</button>
+      <button class="btn-primary grow" id="btnConnect" style="font-size:16px;padding:14px">🔗 Bandı Bağla</button>
       <button class="btn-outline" id="btnDisconnect" disabled>Bağlantıyı Kes</button>
     </div>
+    <div id="connectFeedback" style="padding:10px;border-radius:10px;font-size:13px;margin-bottom:10px;display:none"></div>
     <div class="row" style="margin-bottom:10px">
       <span class="muted">Protokol:</span>
       <select id="protocolSelect" class="grow">
@@ -395,24 +399,77 @@
     }
   }
 
+  // ===================== UI GERİ BİLDİRİM =====================
+  function showFeedback(msg, type = 'info') {
+    const el = $('connectFeedback');
+    if (!el) return;
+    el.style.display = 'block';
+    if (type === 'err') {
+      el.style.background = '#fef2f2'; el.style.border = '1px solid #fecaca'; el.style.color = '#991b1b';
+    } else if (type === 'ok') {
+      el.style.background = '#f0fdf4'; el.style.border = '1px solid #bbf7d0'; el.style.color = '#166534';
+    } else {
+      el.style.background = '#eff6ff'; el.style.border = '1px solid #bfdbfe'; el.style.color = '#1e40af';
+    }
+    el.innerHTML = msg;
+  }
+
   // ===================== BAĞLANTI =====================
   async function connect() {
-    if (!navigator.bluetooth) return log('Web Bluetooth desteklenmiyor. Lütfen Android Chrome kullanın.', 'err');
+    if (!navigator.bluetooth) {
+      const msg = '❌ <b>Web Bluetooth Desteklenmiyor!</b><br>' +
+        'Bu sayfayı WhatsApp / Telegram / Instagram veya Samsung Internet içinden açmış olabilirsiniz.<br>' +
+        '👉 <b>Çözüm:</b> Sayfanın sağ üstündeki <b>⋮ (üç nokta)</b> menüsüne basıp <b>"Chrome\'da Aç"</b> deyin.';
+      showFeedback(msg, 'err');
+      alert('Web Bluetooth bu tarayıcıda çalışmıyor! Lütfen bağlantıyı Google Chrome uygulamasında açın.');
+      return;
+    }
+
+    showFeedback('🔍 <b>Bluetooth cihaz listesi açılıyor…</b><br>Açılan listeden <b>W-fit</b> bandını seçin.', 'info');
+    setStatus('Cihaz aranıyor…', 'busy');
+
     try {
-      setStatus('Cihaz seçiliyor…', 'busy');
-      log('Cihaz arama listesi açılıyor… W-fit veya bandınızı seçin.', 'info');
-      const device = await navigator.bluetooth.requestDevice({
-        acceptAllDevices: true,
-        optionalServices: ALL_OPTIONAL_SERVICES
-      });
+      log('requestDevice çağrılıyor…', 'info');
+      let device;
+      try {
+        device = await navigator.bluetooth.requestDevice({
+          acceptAllDevices: true,
+          optionalServices: ALL_OPTIONAL_SERVICES
+        });
+      } catch (firstErr) {
+        log('acceptAllDevices filtre denemesi: ' + firstErr.message, 'info');
+        // Alternatif olarak isim filtresiyle dene
+        device = await navigator.bluetooth.requestDevice({
+          filters: [
+            { namePrefix: 'W' },
+            { namePrefix: 'w' },
+            { namePrefix: 'FS' },
+            { namePrefix: 'Fit' },
+            { namePrefix: 'Walke' }
+          ],
+          optionalServices: ALL_OPTIONAL_SERVICES
+        });
+      }
+
       state.device = device;
       $('devName').textContent = device.name || '(isimsiz)';
       device.addEventListener('gattserverdisconnected', onDisconnected);
       log(`Cihaz seçildi: ${device.name || device.id}`, 'info');
+      showFeedback(`⏳ <b>${device.name || 'Cihaza'} bağlanılıyor…</b>`, 'info');
       await connectGatt();
+      showFeedback(`✅ <b>${device.name || 'Cihaz'} başarıyla bağlandı!</b>`, 'ok');
     } catch (e) {
-      log(`Bağlantı iptal/hata: ${e.message}`, 'err');
+      log(`Bağlantı iptal/hata: ${e.name} - ${e.message}`, 'err');
       setStatus('Bağlı değil', '');
+      if (e.name === 'NotFoundError') {
+        showFeedback('ℹ️ <b>Cihaz seçilmedi veya bulunamadı.</b><br>• Telefonun Bluetooth ve <b>Konum (GPS)</b> servislerinin açık olduğunu,<br>• Bandın fişe takılı olduğunu kontrol edin.', 'err');
+      } else if (e.name === 'SecurityError') {
+        showFeedback('⚠️ <b>İzin reddedildi!</b><br>Chrome ayarlardan "Yakındaki Cihazlar" veya "Konum" iznine izin verilmesi gerekir.', 'err');
+        alert("İzin Hatası: Chrome için Yakındaki Cihazlar veya Konum iznini kontrol edin.");
+      } else {
+        showFeedback(`❌ <b>Hata:</b> ${e.message}`, 'err');
+        alert("Bağlantı Hatası: " + e.message);
+      }
     }
   }
 
