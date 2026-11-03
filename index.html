@@ -461,10 +461,18 @@
     } catch (e) {
       log(`Bağlantı iptal/hata: ${e.name} - ${e.message}`, 'err');
       setStatus('Bağlı değil', '');
-      if (e.name === 'NotFoundError') {
-        showFeedback('ℹ️ <b>Cihaz seçilmedi veya bulunamadı.</b><br>• Telefonun Bluetooth ve <b>Konum (GPS)</b> servislerinin açık olduğunu,<br>• Bandın fişe takılı olduğunu kontrol edin.', 'err');
+      if (e.message && e.message.toLowerCase().includes('globally disabled')) {
+        showFeedback(
+          '❌ <b>Tarayıcınızda Web Bluetooth Kapalı!</b><br><br>' +
+          '<b>1.</b> Eğer <b>Brave, Opera veya Samsung Internet</b> kullanıyorsanız, Web Bluetooth\'u varsayılan olarak engellerler. Lütfen resmi <b>Google Chrome</b> uygulamasını açın.<br>' +
+          '<b>2. Chrome İzinleri:</b> Telefonunuzun <i>Ayarlar > Uygulamalar > Chrome > İzinler</i> menüsüne girip <b>"Yakındaki Cihazlar" (Nearby devices)</b> iznini "İzin Ver" yapın.<br>' +
+          '<b>3. Chrome Site Ayarları:</b> Chrome sağ üst 3 nokta (⋮) > <i>Ayarlar > Site Ayarları > Bluetooth veya Cihazlar</i> seçeneğinin açık olduğundan emin olun.',
+          'err'
+        );
+      } else if (e.name === 'NotFoundError') {
+        showFeedback('ℹ️ <b>Cihaz seçilmedi veya bulunamadı.</b><br>• Açılan pencereyi kapattınız veya bant kapsama alanı dışında.', 'err');
       } else if (e.name === 'SecurityError') {
-        showFeedback('⚠️ <b>İzin reddedildi!</b><br>Chrome ayarlardan "Yakındaki Cihazlar" veya "Konum" iznine izin verilmesi gerekir.', 'err');
+        showFeedback('⚠️ <b>İzin reddedildi!</b><br>Chrome ayarlarından "Yakındaki Cihazlar" veya "Konum" iznine izin verilmesi gerekir.', 'err');
         alert("İzin Hatası: Chrome için Yakındaki Cihazlar veya Konum iznini kontrol edin.");
       } else {
         showFeedback(`❌ <b>Hata:</b> ${e.message}`, 'err');
